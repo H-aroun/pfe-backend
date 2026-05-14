@@ -1,0 +1,76 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { StatutScenario } from 'src/common/enums';
+
+export class CreateScenarioDto {
+  @ApiProperty({ example: 'Introduction à TypeScript' })
+  @IsString()
+  @IsNotEmpty()
+  titre: string;
+
+  @ApiPropertyOptional({ example: 'Un scénario pour apprendre TypeScript.' })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional({ example: 'Maîtriser les bases de TypeScript.' })
+  @IsString()
+  @IsOptional()
+  objectif?: string;
+
+  @ApiPropertyOptional({ example: 'débutant' })
+  @IsString()
+  @IsOptional()
+  niveau?: string;
+
+  @ApiPropertyOptional({ example: 120 })
+  @IsNumber()
+  @IsOptional()
+  dureeScenario?: number;
+
+  @ApiPropertyOptional({
+    enum: StatutScenario,
+    default: StatutScenario.BROUILLON,
+  })
+  @IsEnum(StatutScenario)
+  @IsOptional()
+  statut?: StatutScenario;
+}
+
+export class UpdateScenarioDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  titre?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  objectif?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  niveau?: string;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  dureeScenario?: number;
+
+  @ApiPropertyOptional({ enum: StatutScenario })
+  @IsEnum(StatutScenario)
+  @IsOptional()
+  statut?: StatutScenario;
+}
