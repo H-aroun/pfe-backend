@@ -26,14 +26,15 @@ export class AuthService {
     if (!(await bcrypt.compare(password, findUser.password))) {
       throw new UnauthorizedException('Invalid password');
     }
-    const { password: userPassword, ...safeUser } = findUser;
+    const { ...safeUser } = findUser;
 
     return {
       userInfo: safeUser,
       access_token: await this.jwtService.signAsync(
         {
           id: findUser.id,
-          name: findUser.name,
+          firstName: findUser.firstName,
+          lastName: findUser.lastName,
           email: findUser.email,
           role: findUser.role?.name,
         },

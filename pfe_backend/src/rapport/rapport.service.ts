@@ -236,7 +236,7 @@ export class RapportService {
 
     return {
       userId,
-      userName: user.name,
+      userName: user.firstName + user.lastName,
       totalRapports: rapports.length,
       averageScore:
         scores.length > 0

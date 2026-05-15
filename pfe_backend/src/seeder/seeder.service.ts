@@ -59,10 +59,12 @@ export class SeederService implements OnApplicationBootstrap {
       });
       if (!admin) {
         admin = await this.userRepo.save({
-          name: 'Administrateur',
+          firstName: 'Administrateur',
+          lastName: 'Administrateur',
           email: 'admin@example.com',
           password: await bcrypt.hash('Admin@123', 10),
           role: adminRole,
+          dateInscription: new Date(),
         });
         console.log('Utilisateur admin créé');
       }
@@ -73,10 +75,12 @@ export class SeederService implements OnApplicationBootstrap {
       });
       if (!teacher) {
         teacher = await this.userRepo.save({
-          name: 'Jean Dupont',
+          lastName: 'Dupont',
+          firstName: 'Jean',
           email: 'teacher@example.com',
           password: await bcrypt.hash('Teacher@123', 10),
           role: teacherRole,
+          dateInscription: new Date(),
         });
         console.log(' Utilisateur teacher créé');
       }

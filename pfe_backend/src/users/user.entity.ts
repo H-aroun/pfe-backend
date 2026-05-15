@@ -18,16 +18,16 @@ export class User {
   id!: number;
 
   @Column()
-  name!: string;
+  lastName!: string;
+
+  @Column()
+  firstName!: string;
 
   @Column({ unique: true })
   email!: string;
 
   @Column()
   password!: string;
-
-  @Column({ type: 'text', nullable: true })
-  description!: string;
 
   @CreateDateColumn()
   dateInscription!: Date;
