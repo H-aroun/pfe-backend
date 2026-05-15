@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEmail, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDate, IsEmail, IsObject, IsString } from 'class-validator';
+import { Role } from 'src/role/role.entity';
 
 export class CreateUserDTO {
   @ApiProperty({ example: 'admin@example.com' })
@@ -19,8 +21,10 @@ export class CreateUserDTO {
 
   @ApiProperty({ example: new Date() })
   @IsDate()
+  @Type(() => Date)
   dateInscription!: string;
 
-  @ApiProperty({ example: 1 })
-  roleId!: number;
+  @IsObject()
+  @Type(() => Role)
+  role: Role;
 }

@@ -5,16 +5,19 @@ import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { RoleGuard } from 'src/role/role.guard';
 import { CreateUserDTO } from './dto/createUser.dto';
-
+import * as bcrypt from 'bcrypt';
 @ApiBearerAuth('access-token')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
   @Post()
   async createUser(@Body() data: CreateUserDTO): Promise<User> {
-    console.log('data ', data);
-
-    const result = await this.userService.createUser(data);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const payload = {
+      ...data,
+      password: hashedPassword,
+    };
+    const result = await this.userService.createUser(payload);
     return result;
   }
   @UseGuards(AuthGuard, RoleGuard)
