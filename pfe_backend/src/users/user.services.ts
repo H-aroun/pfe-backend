@@ -1,9 +1,15 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { CreateUserDTO } from './dto/createUser.dto';
-
+import { ChangePasswordDTO } from './dto/changePassword.dto';
+import * as bcrypt from 'bcrypt';
 @Injectable()
 export class UserService {
   constructor(
@@ -35,5 +41,31 @@ export class UserService {
     if (exist) throw new BadRequestException('Email exist déja');
     const newUser = this.userRepository.create(data);
     return this.userRepository.save(newUser);
+  }
+
+  async changePassword(
+    data: ChangePasswordDTO,
+    email: string,
+  ): Promise<{message: string} | undefined> {
+    const exist = await this.userRepository.findOne({
+      where: { email },
+    });
+    console.log('dataaa ', data);
+
+    if (exist) {
+      if (!(await bcrypt.compare(data.currentPassword, exist.password))) {
+        throw new BadRequestException('Invalid current password');
+      }
+      if (data.confirmPassword === data.newPassword) {
+        const hashedPassword = await bcrypt.hash(data.confirmPassword, 10);
+        await this.userRepository.update(exist.id, {
+          ...exist,
+          password: hashedPassword,
+        });
+        return { message: 'password changed successfuly' };
+      } else {
+        throw new BadRequestException('passwords does not match');
+      }
+    }
   }
 }
