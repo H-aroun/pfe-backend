@@ -18,6 +18,7 @@ import { RapportModule } from './rapport/rapport.module';
 import { ScenarioShareModule } from './scenario-share/scenario-share.module';
 import { MediaModule } from './media/media.module';
 import { ScormModule } from './scorm/scorm.module';
+import { ScenarioCollaborationModule } from './scenario-collaboration/scenario-collaboration.module';
 import config from './config/config';
 import dbConfig from './config/db.config';
 
@@ -48,6 +49,7 @@ import dbConfig from './config/db.config';
     ReponseModule,
     RapportModule,
     ScenarioShareModule,
+    ScenarioCollaborationModule,
     ScormModule,
     MediaModule,
   ],

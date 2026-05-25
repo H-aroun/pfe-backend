@@ -4,11 +4,10 @@ import { AuthPayloadDTO } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) { }
+  constructor(private authService: AuthService) {}
 
   @Post('login')
   login(@Body() authPayload: AuthPayloadDTO) {
-    console.log(authPayload);
     return this.authService.validateUser(authPayload);
   }
 }

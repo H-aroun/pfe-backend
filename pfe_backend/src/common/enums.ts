@@ -2,7 +2,6 @@ export enum StatutScenario {
   BROUILLON = 'brouillon',
   EN_COURS_VALIDATION = 'en_cours_validation',
   APPROUVE = 'approuve',
-  FINALISE = 'finalise',
   EXPORTE = 'exporte',
   ARCHIVE = 'archive',
 }
@@ -10,6 +9,7 @@ export enum StatutScenario {
 export enum TypeRessource {
   MASS = 'mass',
   VIDEO = 'video',
+  AUDIO = 'audio',
   DOCUMENT = 'document',
   DISCUSSION = 'discussion',
 }

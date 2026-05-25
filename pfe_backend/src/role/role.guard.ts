@@ -1,19 +1,16 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './role.decorator';
-import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
-  constructor(
-    private reflector: Reflector,
-    private authService: AuthService,
-  ) {}
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
@@ -37,6 +34,15 @@ export class RoleGuard implements CanActivate {
       throw new UnauthorizedException('User has no role assigned');
     }
 
-    return roles.includes(userRoleName);
+    const allowedRoles = roles.map((role) => role.toLowerCase());
+    const normalizedUserRole = userRoleName.toLowerCase();
+
+    if (!allowedRoles.includes(normalizedUserRole)) {
+      throw new ForbiddenException(
+        'You do not have permission to access this resource',
+      );
+    }
+
+    return true;
   }
 }

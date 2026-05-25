@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Activite } from './activite.entity';
 import { CreateActiviteDto, UpdateActiviteDto } from './dto/activite.dto';
+import { ReorderItemDto } from 'src/common/dto/reorder.dto';
 
 @Injectable()
 export class ActiviteService {
@@ -38,8 +39,14 @@ export class ActiviteService {
   }
 
   async create(dto: CreateActiviteDto): Promise<Activite> {
+    const ordre =
+      dto.ordre ??
+      (await this.activiteRepo.count({
+        where: { sequence: { id: dto.sequenceId } },
+      }));
     const activite = this.activiteRepo.create({
       ...dto,
+      ordre,
       sequence: { id: dto.sequenceId },
     });
     return this.activiteRepo.save(activite);
@@ -53,5 +60,34 @@ export class ActiviteService {
   async remove(id: number): Promise<void> {
     const activite = await this.findOne(id);
     await this.activiteRepo.remove(activite);
+  }
+
+  async reorderBySequence(
+    sequenceId: number,
+    items: ReorderItemDto[],
+  ): Promise<Activite[]> {
+    if (!items.length) return this.findBySequence(sequenceId);
+
+    const ids = items.map((item) => item.id);
+    const activites = await this.activiteRepo.find({
+      where: { id: In(ids), sequence: { id: sequenceId } },
+      relations: ['sequence'],
+    });
+
+    if (activites.length !== ids.length) {
+      throw new NotFoundException(
+        'Une ou plusieurs activités sont introuvables dans cette séquence',
+      );
+    }
+
+    await this.activiteRepo.manager.transaction(async (manager) => {
+      await Promise.all(
+        items.map((item) =>
+          manager.update(Activite, item.id, { ordre: item.ordre }),
+        ),
+      );
+    });
+
+    return this.findBySequence(sequenceId);
   }
 }

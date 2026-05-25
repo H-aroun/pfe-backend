@@ -14,6 +14,8 @@ import { Parcours } from 'src/parcours/parcours.entity';
 import { CourseModule } from 'src/course-module/course-module.entity';
 import { Ressource } from 'src/ressource/ressource.entity';
 import { Rapport } from 'src/rapport/rapport.entity';
+import { CourseDocument } from './course-document.types';
+import { ScenarioDocument } from './scenario-document.types';
 
 @Entity()
 export class Scenario {
@@ -41,6 +43,18 @@ export class Scenario {
     default: StatutScenario.BROUILLON,
   })
   statut!: StatutScenario;
+
+  @Column({ type: 'jsonb', nullable: true })
+  courseDocument!: CourseDocument | null;
+
+  @Column({ default: 1 })
+  courseDocumentVersion!: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  scenarioDocument!: ScenarioDocument | null;
+
+  @Column({ default: 1 })
+  scenarioDocumentVersion!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

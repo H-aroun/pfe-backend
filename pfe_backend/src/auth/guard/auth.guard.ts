@@ -20,11 +20,13 @@ export class AuthGuard implements CanActivate {
       if (!authorization || authorization.trim() === '') {
         throw new UnauthorizedException('Please provide token');
       }
-      const authToken = authorization.replace(/bearer/gim, '').trim();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const resp = await this.authService.validateToken(authToken);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      request.decodedData = resp;
+      const [scheme, token] = authorization.split(' ');
+      if (scheme?.toLowerCase() !== 'bearer' || !token) {
+        throw new UnauthorizedException('Invalid authorization header');
+      }
+      const authToken = token.trim();
+      request.decodedData =
+        await this.authService.validateSessionToken(authToken);
 
       return true;
     } catch (error) {

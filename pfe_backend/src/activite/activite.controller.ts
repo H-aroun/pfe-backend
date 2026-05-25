@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -14,6 +15,7 @@ import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { RoleGuard } from 'src/role/role.guard';
 import { ActiviteService } from './activite.service';
 import { CreateActiviteDto, UpdateActiviteDto } from './dto/activite.dto';
+import { ReorderItemsDto } from 'src/common/dto/reorder.dto';
 
 @ApiTags('activites')
 @UseGuards(AuthGuard, RoleGuard)
@@ -30,6 +32,14 @@ export class ActiviteController {
   @Get('sequence/:sequenceId')
   findBySequence(@Param('sequenceId', ParseIntPipe) sequenceId: number) {
     return this.activiteService.findBySequence(sequenceId);
+  }
+
+  @Patch('sequence/:sequenceId/reorder')
+  reorderBySequence(
+    @Param('sequenceId', ParseIntPipe) sequenceId: number,
+    @Body() dto: ReorderItemsDto,
+  ) {
+    return this.activiteService.reorderBySequence(sequenceId, dto.items);
   }
 
   @Get(':id')

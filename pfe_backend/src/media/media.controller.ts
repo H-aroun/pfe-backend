@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -24,13 +25,37 @@ import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { RoleGuard } from 'src/role/role.guard';
 import { MediaService } from './media.service';
 
+const supportedUploadExtensions = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.mp4',
+  '.webm',
+  '.mov',
+  '.mp3',
+  '.wav',
+  '.ogg',
+  '.m4a',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.ppt',
+  '.pptx',
+  '.xls',
+  '.xlsx',
+  '.csv',
+  '.txt',
+]);
 
 @ApiTags('media')
 @UseGuards(AuthGuard, RoleGuard)
 @ApiBearerAuth('access-token')
 @Controller('media')
 export class MediaController {
-  constructor(private readonly mediaService: MediaService) { }
+  constructor(private readonly mediaService: MediaService) {}
 
   @Post('upload/ressource/:ressourceId')
   @ApiOperation({ summary: 'Uploader un fichier et lier à une Ressource' })
@@ -44,17 +69,28 @@ export class MediaController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads',
+        destination: (_req, _file, cb) => {
+          const uploadDir = join(process.cwd(), 'uploads');
+          if (!existsSync(uploadDir)) {
+            mkdirSync(uploadDir, { recursive: true });
+          }
+          cb(null, uploadDir);
+        },
         filename: (_req, file, cb) => {
           const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+          cb(
+            null,
+            `${uniqueSuffix}${extname(file.originalname).toLowerCase()}`,
+          );
         },
       }),
       fileFilter: (_req, file, cb) => {
-        const allowed = /\.(jpg|jpeg|png|gif|mp4|webm|pdf|doc|docx|ppt|pptx)$/i;
-        if (!allowed.test(file.originalname)) {
+        const extension = extname(file.originalname).toLowerCase();
+        if (!supportedUploadExtensions.has(extension)) {
           return cb(
-            new BadRequestException('Type de fichier non supporté'),
+            new BadRequestException(
+              `Unsupported file type "${extension || file.mimetype}".`,
+            ),
             false,
           );
         }

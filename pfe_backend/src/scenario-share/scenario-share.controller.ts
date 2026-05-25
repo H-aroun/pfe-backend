@@ -35,14 +35,29 @@ export class ScenarioShareController {
 
   @Get('scenario/:scenarioId')
   @ApiOperation({ summary: "Lister les partages d'un scénario" })
-  findByScenario(@Param('scenarioId', ParseIntPipe) scenarioId: number) {
-    return this.shareService.findByScenario(scenarioId);
+  findByScenario(
+    @Param('scenarioId', ParseIntPipe) scenarioId: number,
+    @Request() req: any,
+  ) {
+    return this.shareService.findByScenario(
+      scenarioId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.id as number,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.role as string,
+    );
   }
 
   @Post()
   @ApiOperation({ summary: 'Partager un scénario avec un enseignant' })
-  share(@Body() dto: CreateScenarioShareDto) {
-    return this.shareService.share(dto);
+  share(@Body() dto: CreateScenarioShareDto, @Request() req: any) {
+    return this.shareService.share(
+      dto,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.id as number,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.role as string,
+    );
   }
 
   @Patch(':id')
@@ -50,13 +65,27 @@ export class ScenarioShareController {
   updatePermission(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateScenarioShareDto,
+    @Request() req: any,
   ) {
-    return this.shareService.updatePermission(id, dto);
+    return this.shareService.updatePermission(
+      id,
+      dto,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.id as number,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.role as string,
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Révoquer un partage' })
-  revoke(@Param('id', ParseIntPipe) id: number) {
-    return this.shareService.revoke(id);
+  revoke(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.shareService.revoke(
+      id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.id as number,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      req.decodedData.role as string,
+    );
   }
 }

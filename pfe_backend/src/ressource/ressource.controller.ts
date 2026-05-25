@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -23,8 +24,8 @@ export class RessourceController {
   constructor(private readonly ressourceService: RessourceService) {}
 
   @Get()
-  findAll() {
-    return this.ressourceService.findAll();
+  findAll(@Query('type') type?: string, @Query('search') search?: string) {
+    return this.ressourceService.findAll({ type, search });
   }
 
   @Get('scenario/:scenarioId')

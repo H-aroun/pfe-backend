@@ -20,11 +20,11 @@ export class ScormController {
 
   /**
    * GET /scenarios/:id/export/scorm
-   * Returns a SCORM 1.2 zip package for the given (finalised) scenario.
+   * Returns a SCORM 1.2 zip package for the given scenario.
    */
   @Get(':id/export/scorm')
   @ApiOperation({
-    summary: 'Exporter un scénario finalisé en package SCORM 1.2 (.zip)',
+    summary: 'Exporter un scénario en package SCORM 1.2 (.zip)',
   })
   async exportScorm(
     @Param('id', ParseIntPipe) id: number,

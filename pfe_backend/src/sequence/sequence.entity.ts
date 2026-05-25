@@ -26,6 +26,9 @@ export class Sequence {
   @Column({ nullable: true })
   duree: number;
 
+  @Column({ default: 0 })
+  ordre: number;
+
   @ManyToOne(() => CourseModule, (module) => module.sequences, {
     onDelete: 'CASCADE',
   })

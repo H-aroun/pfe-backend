@@ -1,4 +1,7 @@
+/* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -17,6 +20,8 @@ import { RoleGuard } from 'src/role/role.guard';
 import { Roles } from 'src/role/role.decorator';
 import { ScenarioService } from './scenario.service';
 import { CreateScenarioDto, UpdateScenarioDto } from './dto/scenario.dto';
+import { UpdateCourseDocumentDto } from './dto/course-document.dto';
+import { UpdateScenarioDocumentDto } from './dto/scenario-document.dto';
 
 @ApiTags('scenarios')
 @UseGuards(AuthGuard, RoleGuard)
@@ -39,6 +44,51 @@ export class ScenarioController {
   findMine(@Request() req: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return this.scenarioService.findByUser(req.decodedData.id as number);
+  }
+
+  @Get(':id/course-document')
+  @ApiOperation({ summary: "Document de cours structure d'un scenario" })
+  async getCourseDocument(@Param('id', ParseIntPipe) id: number) {
+    const scenario = await this.scenarioService.findOne(id);
+    return scenario.courseDocument;
+  }
+
+  @Put(':id/course-document')
+  @ApiOperation({ summary: 'Mettre a jour le document de cours structure' })
+  async updateCourseDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCourseDocumentDto,
+  ) {
+    console.log("dto ", dto);
+    
+    if(!dto || !dto.courseDocument){
+      throw new BadRequestException("bad requests")
+    }    
+    const scenario = await this.scenarioService.updateCourseDocument(
+      id,
+      dto.courseDocument,
+    );
+    return scenario.courseDocument;
+  }
+
+  @Get(':id/scenario-document')
+  @ApiOperation({ summary: "Document graph de creation d'un scenario" })
+  async getScenarioDocument(@Param('id', ParseIntPipe) id: number) {
+    const scenario = await this.scenarioService.findOne(id);
+    return scenario.scenarioDocument;
+  }
+
+  @Put(':id/scenario-document')
+  @ApiOperation({ summary: 'Mettre a jour le document graph du scenario' })
+  async updateScenarioDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateScenarioDocumentDto,
+  ) {
+    const scenario = await this.scenarioService.updateScenarioDocument(
+      id,
+      dto.scenarioDocument,
+    );
+    return scenario.scenarioDocument;
   }
 
   @Get(':id')
@@ -89,12 +139,6 @@ export class ScenarioController {
   @ApiOperation({ summary: '(Admin) Rejeter → retour BROUILLON' })
   reject(@Param('id', ParseIntPipe) id: number) {
     return this.scenarioService.reject(id);
-  }
-
-  @Patch(':id/finalize')
-  @ApiOperation({ summary: 'Finaliser → FINALISE' })
-  finalize(@Param('id', ParseIntPipe) id: number) {
-    return this.scenarioService.finalize(id);
   }
 
   @Patch(':id/export')

@@ -27,6 +27,11 @@ export class QuizController {
     return this.quizService.findAll();
   }
 
+  @Get('activite/:activiteId')
+  findByActivite(@Param('activiteId', ParseIntPipe) activiteId: number) {
+    return this.quizService.findByActivite(activiteId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.quizService.findOne(id);

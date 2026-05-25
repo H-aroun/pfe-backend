@@ -104,7 +104,7 @@ export class SeederService implements OnApplicationBootstrap {
 
       // ── Module ────────────────────────────────────────────────────────────
       const module1 = await this.moduleRepo.save({
-        titre: 'Module 1 – Fondamentaux',
+        titre: 'Module 1 - Fondamentaux',
         description: 'Types de base, variables et fonctions.',
         ordre: 1,
         duree: 60,
@@ -113,7 +113,7 @@ export class SeederService implements OnApplicationBootstrap {
 
       // ── Sequence ──────────────────────────────────────────────────────────
       const seq1 = await this.sequenceRepo.save({
-        titre: 'Séquence 1 – Types primitifs',
+        titre: 'Séquence 1 - Types primitifs',
         texte: 'Les types number, string, boolean, null et undefined.',
         duree: 20,
         module: module1,
@@ -121,7 +121,7 @@ export class SeederService implements OnApplicationBootstrap {
 
       // ── Activite ──────────────────────────────────────────────────────────
       const activite = await this.activiteRepo.save({
-        titre: 'QCM – Les types primitifs',
+        titre: 'QCM - Les types primitifs',
         type: TypeActivite.QCM,
         consigne: 'Répondez aux 3 questions suivantes.',
         ordre: 1,
@@ -130,7 +130,7 @@ export class SeederService implements OnApplicationBootstrap {
 
       // ── Quiz ──────────────────────────────────────────────────────────────
       const quiz = await this.quizRepo.save({
-        titre: 'Quiz TypeScript – Types',
+        titre: 'Quiz TypeScript - Types',
         description: 'Testez vos connaissances sur les types TypeScript.',
         tentatives: 3,
         scorePourReussir: 60.0,

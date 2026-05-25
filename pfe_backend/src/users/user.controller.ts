@@ -1,69 +1,143 @@
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  NotFoundException,
   Param,
-  Patch,
+  ParseIntPipe,
   Post,
-  Req,
+  Put,
+  Request,
   UseGuards,
 } from '@nestjs/common';
-import { UserService } from './user.services';
-import { User } from './user.entity';
-import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/guard/auth.guard';
+import { Roles } from 'src/role/role.decorator';
 import { RoleGuard } from 'src/role/role.guard';
-import { CreateUserDTO } from './dto/createUser.dto';
+import {
+  AdminCreateUserDTO,
+  AdminUpdateUserDTO,
+  CreateUserDTO,
+  UpdateUserDTO,
+  UpdateUserRoleDTO,
+} from './dto/createUser.dto';
+import { SafeUser, UserService } from './user.services';
 import * as bcrypt from 'bcrypt';
-import { ChangePasswordDTO } from './dto/changePassword.dto';
+
+interface AuthenticatedRequest {
+  decodedData?: {
+    id?: number;
+  };
+}
+
 @ApiBearerAuth('access-token')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
   @Post()
-  async createUser(@Body() data: CreateUserDTO): Promise<User> {
+  async createUser(@Body() data: CreateUserDTO): Promise<SafeUser> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    const payload = {
+    const user = await this.userService.createUser({
       ...data,
       password: hashedPassword,
-    };
-    const result = await this.userService.createUser(payload);
-    return result;
+    });
+    return this.userService.toSafeUser(user);
   }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Post('managed')
+  @Roles('admin')
+  async createManagedUser(@Body() data: AdminCreateUserDTO): Promise<SafeUser> {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const user = await this.userService.createManagedUser({
+      ...data,
+      password: hashedPassword,
+    });
+    return this.userService.toSafeUser(user);
+  }
+
   @UseGuards(AuthGuard, RoleGuard)
   @Get()
-  async getAllUsers(): Promise<User[]> {
-    return this.userService.getAllUsers();
+  async getAllUsers(): Promise<SafeUser[]> {
+    const users = await this.userService.getAllUsers();
+    return this.userService.toSafeUsers(users);
   }
 
-  // Get user by EMAIL
+  @UseGuards(AuthGuard, RoleGuard)
+  @Get('me')
+  async getMe(@Request() req: AuthenticatedRequest): Promise<SafeUser> {
+    const user = await this.userService.getUserById(
+      String(req.decodedData?.id),
+    );
+    if (!user) throw new NotFoundException('Authenticated user not found');
+    return this.userService.toSafeUser(user);
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Put('me')
+  async updateMe(
+    @Request() req: AuthenticatedRequest,
+    @Body() data: UpdateUserDTO,
+  ): Promise<SafeUser> {
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    const user = await this.userService.updateUser(
+      Number(req.decodedData?.id),
+      data,
+    );
+    return this.userService.toSafeUser(user);
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Put(':id')
+  @Roles('admin')
+  async updateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: AdminUpdateUserDTO,
+  ): Promise<SafeUser> {
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    const user = await this.userService.updateManagedUser(id, data);
+    return this.userService.toSafeUser(user);
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Put(':id/role')
+  @Roles('admin')
+  async updateRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateUserRoleDTO,
+  ): Promise<SafeUser> {
+    const user = await this.userService.updateUserRole(id, data.role);
+    return this.userService.toSafeUser(user);
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Delete(':id')
+  @Roles('admin')
+  async deleteUser(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.userService.deleteUser(id);
+  }
+
   @UseGuards(AuthGuard, RoleGuard)
   @Get('email/:email')
-  async getUserByEmail(@Param('email') email: string): Promise<User | null> {
-    return this.userService.getUserByEmail(email);
+  @Roles('admin')
+  async getUserByEmail(
+    @Param('email') email: string,
+  ): Promise<SafeUser | null> {
+    const user = await this.userService.getUserByEmail(email);
+    return user ? this.userService.toSafeUser(user) : null;
   }
 
-  // Get user by ID
   @UseGuards(AuthGuard, RoleGuard)
   @Get(':id')
-  async getUserById(@Param('id') id: string): Promise<User | null> {
-    return this.userService.getUserById(id);
-  }
-
-  @UseGuards(AuthGuard, RoleGuard)
-  @Patch('change-password')
-  async changePassword(
-    @Req() req: Request,
-    @Body() data: ChangePasswordDTO,
-  ): Promise<{message: string} | undefined> {
-    const email = req['decodedData'].email;
-    console.log("email ===> ", email);
-    console.log(data);
-    
-    return this.userService.changePassword(data, email);
+  @Roles('admin')
+  async getUserById(@Param('id') id: string): Promise<SafeUser | null> {
+    const user = await this.userService.getUserById(id);
+    return user ? this.userService.toSafeUser(user) : null;
   }
 }

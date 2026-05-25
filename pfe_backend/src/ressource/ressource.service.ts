@@ -1,8 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { TypeRessource } from 'src/common/enums';
 import { Ressource } from './ressource.entity';
 import { CreateRessourceDto, UpdateRessourceDto } from './dto/ressource.dto';
+
+interface RessourceFilters {
+  type?: string;
+  search?: string;
+}
 
 @Injectable()
 export class RessourceService {
@@ -11,8 +17,23 @@ export class RessourceService {
     private readonly ressourceRepo: Repository<Ressource>,
   ) {}
 
-  async findAll(): Promise<Ressource[]> {
-    return this.ressourceRepo.find({ relations: ['scenario', 'module'] });
+  async findAll(filters: RessourceFilters = {}): Promise<Ressource[]> {
+    const type = this.normalizeTypeFilter(filters.type);
+    const search = filters.search?.trim();
+    const baseWhere: FindOptionsWhere<Ressource> = type ? { type } : {};
+    const where: FindOptionsWhere<Ressource>[] | FindOptionsWhere<Ressource> =
+      search
+        ? [
+            { ...baseWhere, titre: ILike(`%${search}%`) },
+            { ...baseWhere, description: ILike(`%${search}%`) },
+          ]
+        : baseWhere;
+
+    return this.ressourceRepo.find({
+      where,
+      relations: ['scenario', 'module'],
+      order: { id: 'DESC' },
+    });
   }
 
   async findOne(id: number): Promise<Ressource> {
@@ -53,5 +74,21 @@ export class RessourceService {
   async remove(id: number): Promise<void> {
     const ressource = await this.findOne(id);
     await this.ressourceRepo.remove(ressource);
+  }
+
+  private normalizeTypeFilter(type?: string): TypeRessource | undefined {
+    if (!type || type === 'ALL') return undefined;
+
+    const normalized = type.toLowerCase();
+    const typeMap: Record<string, TypeRessource> = {
+      image: TypeRessource.MASS,
+      mass: TypeRessource.MASS,
+      video: TypeRessource.VIDEO,
+      audio: TypeRessource.AUDIO,
+      document: TypeRessource.DOCUMENT,
+      discussion: TypeRessource.DISCUSSION,
+    };
+
+    return typeMap[normalized];
   }
 }

@@ -17,19 +17,18 @@ export class AuthService {
     const { email, password } = data;
     const findUser = await this.userService.getUserByEmail(email);
 
-    if (!findUser) {
-      throw new UnauthorizedException('User not found');
-    }
-    if (!findUser.password) {
-      throw new UnauthorizedException('User has no password set');
+    const invalidCredentials = new UnauthorizedException(
+      'Invalid email or password',
+    );
+
+    if (!findUser || !findUser.password) {
+      throw invalidCredentials;
     }
     if (!(await bcrypt.compare(password, findUser.password))) {
-      throw new UnauthorizedException('Invalid password');
+      throw invalidCredentials;
     }
-    const { ...safeUser } = findUser;
-
     return {
-      userInfo: safeUser,
+      userInfo: this.userService.toSafeUser(findUser),
       access_token: await this.jwtService.signAsync(
         {
           id: findUser.id,
@@ -47,5 +46,24 @@ export class AuthService {
     return this.jwtService.verify(token, {
       secret: this.configService.get('jwt.secretCode'),
     });
+  }
+
+  async validateSessionToken(token: string) {
+    const decoded = this.validateToken(token) as { id?: number | string };
+    const currentUser = decoded.id
+      ? await this.userService.getUserById(String(decoded.id))
+      : null;
+
+    if (!currentUser) {
+      throw new UnauthorizedException('Authenticated user not found');
+    }
+
+    return {
+      id: currentUser.id,
+      firstName: currentUser.firstName,
+      lastName: currentUser.lastName,
+      email: currentUser.email,
+      role: currentUser.role?.name,
+    };
   }
 }

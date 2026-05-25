@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -17,6 +18,7 @@ import {
   CreateCourseModuleDto,
   UpdateCourseModuleDto,
 } from './dto/course-module.dto';
+import { ReorderItemsDto } from 'src/common/dto/reorder.dto';
 
 @ApiTags('modules')
 @UseGuards(AuthGuard, RoleGuard)
@@ -33,6 +35,14 @@ export class CourseModuleController {
   @Get('scenario/:scenarioId')
   findByScenario(@Param('scenarioId', ParseIntPipe) scenarioId: number) {
     return this.moduleService.findByScenario(scenarioId);
+  }
+
+  @Patch('scenario/:scenarioId/reorder')
+  reorderByScenario(
+    @Param('scenarioId', ParseIntPipe) scenarioId: number,
+    @Body() dto: ReorderItemsDto,
+  ) {
+    return this.moduleService.reorderByScenario(scenarioId, dto.items);
   }
 
   @Get(':id')

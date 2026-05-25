@@ -27,6 +27,13 @@ export class QuizService {
     return quiz;
   }
 
+  async findByActivite(activiteId: number): Promise<Quiz | null> {
+    return this.quizRepo.findOne({
+      where: { activite: { id: activiteId } },
+      relations: ['questions', 'questions.reponses', 'activite'],
+    });
+  }
+
   async create(dto: CreateQuizDto): Promise<Quiz> {
     const activite = await this.activiteRepo.findOne({
       where: { id: dto.activiteId },
@@ -34,7 +41,12 @@ export class QuizService {
     if (!activite)
       throw new NotFoundException(`Activité #${dto.activiteId} introuvable`);
 
-    const quiz = this.quizRepo.create({ ...dto });
+    const quiz = this.quizRepo.create({
+      titre: dto.titre,
+      description: dto.description,
+      tentatives: dto.tentatives,
+      scorePourReussir: dto.scorePourReussir,
+    });
     const saved = await this.quizRepo.save(quiz);
 
     activite.quiz = saved;

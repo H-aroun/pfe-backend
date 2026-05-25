@@ -3,16 +3,22 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const uploadDir = join(process.cwd(), 'uploads');
+
+  if (!existsSync(uploadDir)) {
+    mkdirSync(uploadDir, { recursive: true });
+  }
 
   // Global validation pipe — enforces all DTO class-validator decorators
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // Serve uploaded files statically at /uploads/<filename>
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  app.useStaticAssets(uploadDir, {
     prefix: '/uploads',
   });
 

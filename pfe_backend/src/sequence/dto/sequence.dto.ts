@@ -22,6 +22,11 @@ export class CreateSequenceDto {
   @IsOptional()
   duree?: number;
 
+  @ApiPropertyOptional({ example: 1 })
+  @IsNumber()
+  @IsOptional()
+  ordre?: number;
+
   @ApiProperty({ example: 1, description: 'ID du module parent' })
   @IsNumber()
   moduleId: number;
@@ -47,4 +52,9 @@ export class UpdateSequenceDto {
   @IsNumber()
   @IsOptional()
   duree?: number;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  ordre?: number;
 }

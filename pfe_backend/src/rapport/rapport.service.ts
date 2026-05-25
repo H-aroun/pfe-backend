@@ -18,14 +18,60 @@ export interface GlobalStatsDto {
   rapportsByType: Record<string, number>;
 }
 
+export interface ActivityPointDto {
+  date: string;
+  count: number;
+  completions: number;
+}
+
+export interface ScenarioDashboardStatDto {
+  id: string;
+  title: string;
+  attempts: number;
+  completions: number;
+  completionRate: number;
+  avgScore: number;
+  avgTime: number | null;
+  status: StatutScenario;
+  successRate: number;
+}
+
+export interface RapportSummaryDto {
+  id: string;
+  type: TypeRapport;
+  date: string;
+  score: number | null;
+  scenarioId: string | null;
+  scenarioTitle: string | null;
+  userId: string;
+  userName: string;
+}
+
 export interface ScenarioStatsDto {
   scenarioId: number;
+  title: string;
   scenarioTitre: string;
+  totalAttempts: number;
   totalRapports: number;
+  completions: number;
+  completionRate: number;
   averageScore: number | null;
+  avgScore: number | null;
   minScore: number | null;
   maxScore: number | null;
+  avgDuration: number | null;
+  status: StatutScenario;
+  successRate: number;
+  activityBreakdown: ActivityStatDto[];
   rapportsByType: Record<string, number>;
+}
+
+export interface ActivityStatDto {
+  activityId: string;
+  title: string;
+  attempts: number;
+  successRate: number;
+  avgScore: number;
 }
 
 export interface UserStatsDto {
@@ -38,10 +84,17 @@ export interface UserStatsDto {
   scenariosInvolved: number;
 }
 
-export interface AdminDashboardDto {
+export interface AnalyticsDashboardDto extends GlobalStatsDto {
   global: GlobalStatsDto;
-  topScenarios: ScenarioStatsDto[];
-  recentRapports: Rapport[];
+  totalAttempts: number;
+  avgScore: number;
+  avgCompletionRate: number;
+  publishedScenarios: number;
+  draftScenarios: number;
+  archivedScenarios: number;
+  recentActivity: ActivityPointDto[];
+  topScenarios: ScenarioDashboardStatDto[];
+  recentRapports: RapportSummaryDto[];
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -98,8 +151,9 @@ export class RapportService {
   }
 
   async update(id: number, dto: UpdateRapportDto): Promise<Rapport> {
-    await this.rapportRepo.update(id, dto as any);
-    return this.findOne(id);
+    const rapport = await this.findOne(id);
+    Object.assign(rapport, dto);
+    return this.rapportRepo.save(rapport);
   }
 
   async remove(id: number): Promise<void> {
@@ -187,18 +241,31 @@ export class RapportService {
       {} as Record<string, number>,
     );
 
+    const completions = this.countCompletions(rapports);
+    const completionRate = this.percentage(completions, rapports.length);
+    const averageScore =
+      scores.length > 0
+        ? Math.round(
+            (scores.reduce((a, b) => a + b, 0) / scores.length) * 100,
+          ) / 100
+        : null;
+
     return {
       scenarioId,
+      title: scenario.titre,
       scenarioTitre: scenario.titre,
+      totalAttempts: rapports.length,
       totalRapports: rapports.length,
-      averageScore:
-        scores.length > 0
-          ? Math.round(
-              (scores.reduce((a, b) => a + b, 0) / scores.length) * 100,
-            ) / 100
-          : null,
+      completions,
+      completionRate,
+      averageScore,
+      avgScore: averageScore,
       minScore: scores.length > 0 ? Math.min(...scores) : null,
       maxScore: scores.length > 0 ? Math.max(...scores) : null,
+      avgDuration: this.averageDuration(rapports),
+      status: scenario.statut,
+      successRate: this.successRate(rapports),
+      activityBreakdown: this.activityBreakdown(rapports),
       rapportsByType,
     };
   }
@@ -253,43 +320,236 @@ export class RapportService {
   /**
    * Full admin dashboard: global stats + top 5 scenarios + last 10 rapports.
    */
-  async getAdminDashboard(): Promise<AdminDashboardDto> {
-    const [global, recentRapports, allScenarios] = await Promise.all([
-      this.getGlobalStats(),
-      this.rapportRepo.find({
-        relations: ['user', 'scenario'],
-        order: { date: 'DESC' },
-        take: 10,
-      }),
-      this.scenarioRepo.find(),
-    ]);
+  async getAdminDashboard(): Promise<AnalyticsDashboardDto> {
+    const [global, recentRapports, allScenarios, allRapports] =
+      await Promise.all([
+        this.getGlobalStats(),
+        this.rapportRepo.find({
+          relations: ['user', 'scenario'],
+          order: { date: 'DESC' },
+          take: 10,
+        }),
+        this.scenarioRepo.find(),
+        this.rapportRepo.find({ relations: ['scenario', 'user'] }),
+      ]);
 
-    // Calculate top 5 scenarios using already fetched data or optimized query
-    // Since we need full stats for each, we'll get the IDs first
-    const scenarioIdCounts: Record<number, number> = {};
-    const allRapportsWithScenario = await this.rapportRepo.find({
-      select: ['id', 'scenario'],
-      relations: ['scenario'],
-    });
-
-    allRapportsWithScenario.forEach((r) => {
-      if (r.scenario) {
-        scenarioIdCounts[r.scenario.id] =
-          (scenarioIdCounts[r.scenario.id] ?? 0) + 1;
-      }
-    });
-
-    const topIds = Object.entries(scenarioIdCounts)
-      .sort((a, b) => b[1] - a[1])
+    const reportsByScenario = this.groupRapportsByScenario(allRapports);
+    const topScenarios = allScenarios
+      .map((scenario) =>
+        this.toScenarioDashboardStat(
+          scenario,
+          reportsByScenario.get(scenario.id) ?? [],
+        ),
+      )
+      .sort((a, b) => b.attempts - a.attempts || b.avgScore - a.avgScore)
       .slice(0, 5)
-      .map(([id]) => Number(id));
+      .filter((scenario) => scenario.attempts > 0 || allScenarios.length <= 5);
 
-    const topScenarios = await Promise.all(
-      topIds
-        .filter((id) => allScenarios.some((s) => s.id === id))
-        .map((id) => this.getScenarioStats(id)),
+    return {
+      ...global,
+      global,
+      totalAttempts: global.totalRapports,
+      avgScore: global.averageScore ?? 0,
+      avgCompletionRate: this.averageCompletionRate(allRapports),
+      publishedScenarios:
+        (global.scenariosByStatus[StatutScenario.APPROUVE] ?? 0) +
+        (global.scenariosByStatus[StatutScenario.EXPORTE] ?? 0),
+      draftScenarios: global.scenariosByStatus[StatutScenario.BROUILLON] ?? 0,
+      archivedScenarios: global.scenariosByStatus[StatutScenario.ARCHIVE] ?? 0,
+      recentActivity: this.buildRecentActivity(allRapports),
+      topScenarios,
+      recentRapports: recentRapports.map((rapport) =>
+        this.toRapportSummary(rapport),
+      ),
+    };
+  }
+
+  private scoreValue(rapport: Rapport): number | null {
+    return typeof rapport.score === 'number' && Number.isFinite(rapport.score)
+      ? rapport.score
+      : null;
+  }
+
+  private averageScore(rapports: Rapport[]): number {
+    const scores = rapports
+      .map((rapport) => this.scoreValue(rapport))
+      .filter((score): score is number => score !== null);
+
+    if (!scores.length) return 0;
+    return (
+      Math.round(
+        (scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100,
+      ) / 100
     );
+  }
 
-    return { global, topScenarios, recentRapports };
+  private countCompletions(rapports: Rapport[]): number {
+    return rapports.filter((rapport) => this.isCompletion(rapport)).length;
+  }
+
+  private isCompletion(rapport: Rapport): boolean {
+    const data = rapport.donnees ?? {};
+    const completed = data.completed ?? data.complete ?? data.isComplete;
+    const completionRate = data.completionRate ?? data.progress ?? data.pct;
+
+    if (completed === true) return true;
+    if (typeof completionRate === 'number') return completionRate >= 100;
+    if (rapport.type === TypeRapport.PROGRESSION) return true;
+    return false;
+  }
+
+  private percentage(value: number, total: number): number {
+    return total > 0 ? Math.round((value / total) * 10000) / 100 : 0;
+  }
+
+  private averageCompletionRate(rapports: Rapport[]): number {
+    return this.percentage(this.countCompletions(rapports), rapports.length);
+  }
+
+  private successRate(rapports: Rapport[]): number {
+    const scoreReports = rapports.filter(
+      (rapport) => this.scoreValue(rapport) !== null,
+    );
+    const passed = scoreReports.filter(
+      (rapport) => (this.scoreValue(rapport) ?? 0) >= 70,
+    ).length;
+
+    return this.percentage(passed, scoreReports.length);
+  }
+
+  private averageDuration(rapports: Rapport[]): number | null {
+    const durations = rapports
+      .map((rapport) => {
+        const duration =
+          rapport.donnees?.duration ??
+          rapport.donnees?.durationMinutes ??
+          rapport.donnees?.timeSpent;
+        return typeof duration === 'number' && Number.isFinite(duration)
+          ? duration
+          : null;
+      })
+      .filter((duration): duration is number => duration !== null);
+
+    if (!durations.length) return null;
+    return (
+      Math.round(
+        (durations.reduce((sum, duration) => sum + duration, 0) /
+          durations.length) *
+          100,
+      ) / 100
+    );
+  }
+
+  private activityBreakdown(rapports: Rapport[]): ActivityStatDto[] {
+    const byActivity = new Map<string, Rapport[]>();
+
+    rapports.forEach((rapport) => {
+      const data = rapport.donnees ?? {};
+      const rawActivityId = data.activityId ?? data.activiteId;
+      const activityId =
+        typeof rawActivityId === 'number' || typeof rawActivityId === 'string'
+          ? String(rawActivityId)
+          : 'scenario';
+      const current = byActivity.get(activityId) ?? [];
+      current.push(rapport);
+      byActivity.set(activityId, current);
+    });
+
+    return Array.from(byActivity.entries()).map(
+      ([activityId, activityReports]) => {
+        const titleSource = activityReports.find((rapport) => {
+          const title =
+            rapport.donnees?.activityTitle ?? rapport.donnees?.title;
+          return typeof title === 'string' && title.length > 0;
+        });
+        const title =
+          typeof titleSource?.donnees?.activityTitle === 'string'
+            ? titleSource.donnees.activityTitle
+            : typeof titleSource?.donnees?.title === 'string'
+              ? titleSource.donnees.title
+              : activityId === 'scenario'
+                ? 'Scenario'
+                : `Activity ${activityId}`;
+
+        return {
+          activityId,
+          title,
+          attempts: activityReports.length,
+          successRate: this.successRate(activityReports),
+          avgScore: this.averageScore(activityReports),
+        };
+      },
+    );
+  }
+
+  private groupRapportsByScenario(rapports: Rapport[]): Map<number, Rapport[]> {
+    const grouped = new Map<number, Rapport[]>();
+
+    rapports.forEach((rapport) => {
+      if (!rapport.scenario) return;
+      const current = grouped.get(rapport.scenario.id) ?? [];
+      current.push(rapport);
+      grouped.set(rapport.scenario.id, current);
+    });
+
+    return grouped;
+  }
+
+  private toScenarioDashboardStat(
+    scenario: Scenario,
+    rapports: Rapport[],
+  ): ScenarioDashboardStatDto {
+    const completions = this.countCompletions(rapports);
+
+    return {
+      id: String(scenario.id),
+      title: scenario.titre,
+      attempts: rapports.length,
+      completions,
+      completionRate: this.percentage(completions, rapports.length),
+      avgScore: this.averageScore(rapports),
+      avgTime: this.averageDuration(rapports),
+      status: scenario.statut,
+      successRate: this.successRate(rapports),
+    };
+  }
+
+  private buildRecentActivity(rapports: Rapport[]): ActivityPointDto[] {
+    const today = new Date();
+    const days = Array.from({ length: 30 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (29 - index));
+      return date.toISOString().slice(0, 10);
+    });
+    const grouped = new Map<string, { count: number; completions: number }>();
+
+    days.forEach((day) => grouped.set(day, { count: 0, completions: 0 }));
+    rapports.forEach((rapport) => {
+      const day = rapport.date.toISOString().slice(0, 10);
+      if (!grouped.has(day)) return;
+      const point = grouped.get(day);
+      if (!point) return;
+      point.count += 1;
+      if (this.isCompletion(rapport)) point.completions += 1;
+    });
+
+    return days.map((day) => ({
+      date: day,
+      count: grouped.get(day)?.count ?? 0,
+      completions: grouped.get(day)?.completions ?? 0,
+    }));
+  }
+
+  private toRapportSummary(rapport: Rapport): RapportSummaryDto {
+    return {
+      id: String(rapport.id),
+      type: rapport.type,
+      date: rapport.date.toISOString(),
+      score: this.scoreValue(rapport),
+      scenarioId: rapport.scenario ? String(rapport.scenario.id) : null,
+      scenarioTitle: rapport.scenario?.titre ?? null,
+      userId: String(rapport.user.id),
+      userName: `${rapport.user.firstName} ${rapport.user.lastName}`.trim(),
+    };
   }
 }
